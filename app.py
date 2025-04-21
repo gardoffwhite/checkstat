@@ -1,11 +1,14 @@
-from fastapi import FastAPI, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from starlette.requests import Request
 import requests
 from bs4 import BeautifulSoup
 
-app = FastAPI()
+# กำหนด templates folder
 templates = Jinja2Templates(directory="templates")
+
+app = FastAPI()
 
 # URL สำหรับ logout, login และหน้า charedit.php
 logout_url = "http://nage-warzone.com/admin/?logout=session_id()"
@@ -77,10 +80,11 @@ def distribute_lvpoint(lvpoint, stats_group, existing_values):
 
 # หน้าเว็บหลัก
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, charname: str = None):
     char_data = None
-    charname = ""
-    if "charname" in request.query_params:
-        charname = request.query_params["charname"]
+
+    if charname:
         char_data = get_character_data(charname)
+
     return templates.TemplateResponse("index.html", {"request": request, "char_data": char_data, "charname": charname})
+
