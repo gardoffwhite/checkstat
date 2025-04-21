@@ -80,11 +80,10 @@ def distribute_lvpoint(lvpoint, stats_group, existing_values):
 
 # หน้าเว็บหลัก
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, charname: str = None):
+async def index(request: Request, charname: str = ""):
     char_data = None
 
     if charname:
         char_data = get_character_data(charname)
 
     return templates.TemplateResponse("index.html", {"request": request, "char_data": char_data, "charname": charname})
-
