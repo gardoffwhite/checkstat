@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="TIS-620"> <!-- หรือ UTF-8 ถ้าใช้ในเบราว์เซอร์ได้ -->
+    <meta charset="TIS-620">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบคำนวณอัพสเตตัสจากแอดมิน</title>
+    <title>แก้ไขข้อมูลตัวละคร</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,34 +32,28 @@
         .error {
             color: red;
         }
-        a {
-            color: blue;
-            text-decoration: none;
-        }
     </style>
 </head>
 <body>
-
     <h1>ระบบคำนวณ อัพสเตตัสจากแอดมิน</h1>
-
-    <form method="get" action="/">
+    <form method="GET">
         <label>กรอกชื่อตัวละคร:</label>
-        <input type="text" name="charname" value="{{ charname }}" required>
+        <input type="text" name="charname" value="{{ charname or '' }}" required>
         <button type="submit">ค้นหา</button>
     </form>
 
-    {% if char_data %}
-        <h2>คำนวณค่าอัพสเตตัส: {{ char_data['charname'] }}</h2>
-        <a href="http://nage-warzone.com/admin/charedit.php" target="_blank">ลิ้งค์อัพข้อมูล</a>
-        <h2 style="color: red;">** อย่าลืมใส่ช่อง LV point เป็น 1 ทุกครั้งหลังอัพสเตตัส! **</h2>
-        <ul>
-            <li><strong>STR:</strong> {{ char_data['str'] }}</li>
-            <li><strong>DEX:</strong> {{ char_data['dex'] }}</li>
-            <li><strong>LVPOINT คงเหลือ:</strong> 1</li>
-        </ul>
+    {% if char_data and char_data != 'Error' %}
+    <h2>คำนวณค่าอัพสเตตัส: {{ char_data['charname'] }}</h2>
+    <a href="http://nage-warzone.com/admin/charedit.php" target="_blank">ลิ้งค์อัพข้อมูล</a>
+    <h2 style="color: red;">อย่าลืมใส่ช่อง LV point เป็น 0 ทุกครั้ง</h2>
+    <ul>
+        <li><strong>STR:</strong> {{ char_data['str'] }}</li>
+        <li><strong>DEX:</strong> {{ char_data['dex'] }}</li>
+        <li><strong>ESP:</strong> {{ char_data['esp'] }}</li>
+        <li><strong>SPT:</strong> {{ char_data['spt'] }}</li>
+    </ul>
     {% elif charname %}
-        <p class="error">ไม่พบตัวละครนี้ในระบบ</p>
+    <p class="error">ไม่พบตัวละครนี้ในระบบ</p>
     {% endif %}
-
 </body>
 </html>
