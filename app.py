@@ -1,50 +1,48 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 import requests
 from bs4 import BeautifulSoup
 
-app = FastAPI()
+# กำหนด templates folder
 templates = Jinja2Templates(directory="templates")
 
+app = FastAPI()
+
+# URL สำหรับ logout, login และหน้า charedit.php
+logout_url = "http://nage-warzone.com/admin/?logout=session_id()"
 login_url = "http://nage-warzone.com/admin/index.php"
 charedit_url = "http://nage-warzone.com/admin/charedit.php"
 
+# ข้อมูลฟอร์มล็อกอิน
 login_payload = {
     "username": "admin",
     "password": "3770",
     "submit": "Submit"
 }
 
+# สร้าง session
 session = requests.Session()
 headers = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+    "Content-Type": "application/x-www-form-urlencoded; charset=TIS-620"
 }
 
+# ฟังก์ชันล็อกอินและดึงข้อมูล
 def get_character_data(charname=""):
     try:
-        # login ก่อน
         session.post(login_url, data=login_payload, headers=headers, timeout=20)
 
-        # เตรียม data ให้ใช้ TIS-620
-        post_data = {
-            "charname": charname.encode('tis-620', errors='ignore').decode('tis-620', errors='ignore'),
-            "searchname": "Submit"
-        }
+        # แปลง charname เป็น TIS-620 ก่อนส่ง
+        charname_tis = charname.encode('tis-620').decode('latin1')
 
-        # แปลงข้อมูลก่อนส่ง
-        response = session.post(
+        char_resp = session.post(
             charedit_url,
-            data=post_data,
-            headers=headers,
-            timeout=20
+            data={"charname": charname_tis, "searchname": "Submit"},
+            headers=headers, timeout=20
         )
-
-        # แปลงเนื้อหา response เป็น TIS-620
-        response.encoding = 'tis-620'
-        soup = BeautifulSoup(response.text, "html.parser")
-
+        soup = BeautifulSoup(char_resp.text, "html.parser")
     except requests.exceptions.RequestException as e:
         return f"Error: {e}"
 
@@ -55,8 +53,10 @@ def get_character_data(charname=""):
         placeholder_value = placeholder.get('placeholder')
         data[field_name] = int(placeholder_value) if placeholder_value.isdigit() else placeholder_value
 
+    # คำนวณ lvpoint
     lvpoint = int(data.get("lvpoint", 0))
 
+    # กระจาย point
     stats_str_dex = ['str', 'dex']
     existing_str_dex = [data.get("str", 0), data.get("dex", 0)]
     distributed_str_dex = distribute_lvpoint(lvpoint, stats_str_dex, existing_str_dex)
@@ -70,28 +70,26 @@ def get_character_data(charname=""):
 
     return data
 
+# ฟังก์ชันกระจาย lvpoint
 def distribute_lvpoint(lvpoint, stats_group, existing_values):
-    if lvpoint <= 1:
-        return {stat: value for stat, value in zip(stats_group, existing_values)}
-
-    usable_points = lvpoint - 1  # เหลือเศษ 1 ไว้
     total_existing = sum(existing_values)
-    total_points = usable_points + total_existing
-
+    total_points = lvpoint + total_existing
     points_per_stat = total_points // len(stats_group)
+    remainder = total_points % len(stats_group)
 
     distributed_points = {stat: points_per_stat for stat in stats_group}
+    for i, stat in enumerate(stats_group):
+        if i < remainder:
+            distributed_points[stat] += 1
     return distributed_points
 
+# หน้าเว็บหลัก
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, charname: str = ""):
+async def index(request: Request, charname: str = None):
     char_data = None
 
-    if charname.strip() != "":
+    if charname:
         char_data = get_character_data(charname)
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "char_data": char_data,
-        "charname": charname
-    })
+    return templates.TemplateResponse("index.html", {"request": request, "char_data": char_data, "charname": charname})
+
