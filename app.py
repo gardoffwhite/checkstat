@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import requests
 from bs4 import BeautifulSoup
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 # URL สำหรับ logout, login และหน้า charedit.php
 logout_url = "http://nage-warzone.com/admin/?logout=session_id()"
@@ -75,27 +77,10 @@ def distribute_lvpoint(lvpoint, stats_group, existing_values):
 
 # หน้าเว็บหลัก
 @app.get("/", response_class=HTMLResponse)
-def index():
-    return """
-    <html>
-        <head>
-            <title>Character Data</title>
-        </head>
-        <body>
-            <h1>Enter Character Name</h1>
-            <form action="/" method="post">
-                <input type="text" name="charname" placeholder="Character Name">
-                <button type="submit">Search</button>
-            </form>
-        </body>
-    </html>
-    """
-
-@app.post("/")
-async def submit(charname: str = Form(...)):
-    char_data = get_character_data(charname)
-    return {"char_data": char_data}
-
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+async def index(request: Request):
+    char_data = None
+    charname = ""
+    if "charname" in request.query_params:
+        charname = request.query_params["charname"]
+        char_data = get_character_data(charname)
+    return templates.TemplateResponse("index.html", {"request": request, "char_data": char_data, "charname": charname})
