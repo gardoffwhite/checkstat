@@ -1,8 +1,9 @@
-from flask import Flask, render_template_string, request
+from fastapi import FastAPI, Form
+from fastapi.responses import HTMLResponse
 import requests
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
+app = FastAPI()
 
 # URL สำหรับ logout, login และหน้า charedit.php
 logout_url = "http://nage-warzone.com/admin/?logout=session_id()"
@@ -73,18 +74,28 @@ def distribute_lvpoint(lvpoint, stats_group, existing_values):
     return distributed_points
 
 # หน้าเว็บหลัก
-# หน้าเว็บหลัก
-# หน้าเว็บหลัก 
-@app.route('/', methods=['GET', 'POST'])
+@app.get("/", response_class=HTMLResponse)
 def index():
-    char_data = None
-    charname = ""
+    return """
+    <html>
+        <head>
+            <title>Character Data</title>
+        </head>
+        <body>
+            <h1>Enter Character Name</h1>
+            <form action="/" method="post">
+                <input type="text" name="charname" placeholder="Character Name">
+                <button type="submit">Search</button>
+            </form>
+        </body>
+    </html>
+    """
 
-    if request.method == 'POST':
-        charname = request.form.get('charname', '').strip()
-        char_data = get_character_data(charname)
-
-    return render_template('index.html', char_data=char_data, charname=charname)
+@app.post("/")
+async def submit(charname: str = Form(...)):
+    char_data = get_character_data(charname)
+    return {"char_data": char_data}
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
