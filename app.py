@@ -69,21 +69,27 @@ def get_character_data(charname=""):
 def distribute_lvpoint(lvpoint, stats_group, existing_values):
     total_existing = sum(existing_values)
     total_points = lvpoint + total_existing
-    points_per_stat = total_points // len(stats_group)
-    remainder = total_points % len(stats_group)
+    points_per_stat = total_points // len(stats_group)  # คำนวณคะแนนต่อสเตตัส
+    remainder = total_points % len(stats_group)  # เศษที่ไม่ใช้ในการกระจาย
 
+    # ทำให้ใช้คะแนนแต่ละสเตตัสเท่ากัน
     distributed_points = {stat: points_per_stat for stat in stats_group}
-    for i, stat in enumerate(stats_group):
-        if i < remainder:
+    
+    # ไม่ใช้เศษในการกระจายคะแนน
+    for stat in stats_group:
+        if remainder > 0:
             distributed_points[stat] += 1
+            remainder -= 1
+
     return distributed_points
 
 # หน้าเว็บหลัก
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, charname: str = ""):
+async def index(request: Request, charname: str = None):
     char_data = None
 
     if charname:
         char_data = get_character_data(charname)
 
     return templates.TemplateResponse("index.html", {"request": request, "char_data": char_data, "charname": charname})
+
