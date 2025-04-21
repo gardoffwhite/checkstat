@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
@@ -24,18 +24,27 @@ headers = {
 
 def get_character_data(charname=""):
     try:
+        # login ก่อน
         session.post(login_url, data=login_payload, headers=headers, timeout=20)
 
-        # Convert charname to TIS-620 encoding for compatibility
-        charname_encoded = charname.encode("tis-620")
-        charname_fixed = charname_encoded.decode("tis-620")
+        # เตรียม data ให้ใช้ TIS-620
+        post_data = {
+            "charname": charname.encode('tis-620', errors='ignore').decode('tis-620', errors='ignore'),
+            "searchname": "Submit"
+        }
 
-        char_resp = session.post(
+        # แปลงข้อมูลก่อนส่ง
+        response = session.post(
             charedit_url,
-            data={"charname": charname_fixed, "searchname": "Submit"},
-            headers=headers, timeout=20
+            data=post_data,
+            headers=headers,
+            timeout=20
         )
-        soup = BeautifulSoup(char_resp.text, "html.parser")
+
+        # แปลงเนื้อหา response เป็น TIS-620
+        response.encoding = 'tis-620'
+        soup = BeautifulSoup(response.text, "html.parser")
+
     except requests.exceptions.RequestException as e:
         return f"Error: {e}"
 
@@ -48,7 +57,6 @@ def get_character_data(charname=""):
 
     lvpoint = int(data.get("lvpoint", 0))
 
-    # Distribute stats (leave remainder 1 point always)
     stats_str_dex = ['str', 'dex']
     existing_str_dex = [data.get("str", 0), data.get("dex", 0)]
     distributed_str_dex = distribute_lvpoint(lvpoint, stats_str_dex, existing_str_dex)
@@ -64,11 +72,12 @@ def get_character_data(charname=""):
 
 def distribute_lvpoint(lvpoint, stats_group, existing_values):
     if lvpoint <= 1:
-        return {stat: existing for stat, existing in zip(stats_group, existing_values)}
+        return {stat: value for stat, value in zip(stats_group, existing_values)}
 
-    lvpoint -= 1  # keep 1 point as remainder
+    usable_points = lvpoint - 1  # เหลือเศษ 1 ไว้
     total_existing = sum(existing_values)
-    total_points = lvpoint + total_existing
+    total_points = usable_points + total_existing
+
     points_per_stat = total_points // len(stats_group)
 
     distributed_points = {stat: points_per_stat for stat in stats_group}
@@ -78,7 +87,7 @@ def distribute_lvpoint(lvpoint, stats_group, existing_values):
 async def index(request: Request, charname: str = ""):
     char_data = None
 
-    if charname:
+    if charname.strip() != "":
         char_data = get_character_data(charname)
 
     return templates.TemplateResponse("index.html", {
